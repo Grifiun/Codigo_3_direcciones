@@ -1,3 +1,11 @@
+
+import clasesDAO.TokenError;
+import gramatica.lexer;
+import gramatica.parser;
+import java.io.StringReader;
+import java.text.Normalizer;
+import java.util.ArrayList;
+
 /*
  * To change this license header, choose License Headers in Project Properties.
  * To change this template file, choose Tools | Templates
@@ -26,21 +34,150 @@ public class Ventana extends javax.swing.JFrame {
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
+        jLabel1 = new javax.swing.JLabel();
+        jScrollPane1 = new javax.swing.JScrollPane();
+        txtSalida = new javax.swing.JTextArea();
+        jScrollPane2 = new javax.swing.JScrollPane();
+        txtEntrada = new javax.swing.JTextArea();
+        jLabel2 = new javax.swing.JLabel();
+        jButton1 = new javax.swing.JButton();
+
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+
+        jLabel1.setText("SALIDA");
+
+        txtSalida.setColumns(20);
+        txtSalida.setRows(5);
+        jScrollPane1.setViewportView(txtSalida);
+
+        txtEntrada.setColumns(20);
+        txtEntrada.setRows(5);
+        jScrollPane2.setViewportView(txtEntrada);
+
+        jLabel2.setText("INGRESE LA OPERACION");
+
+        jButton1.setText("CALCULAR");
+        jButton1.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jButton1ActionPerformed(evt);
+            }
+        });
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 400, Short.MAX_VALUE)
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                .addContainerGap(17, Short.MAX_VALUE)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 679, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                        .addGroup(layout.createSequentialGroup()
+                            .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 163, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addGap(151, 151, 151)
+                            .addComponent(jLabel1)
+                            .addContainerGap())
+                        .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                            .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                                .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 679, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addGroup(javax.swing.GroupLayout.Alignment.LEADING, layout.createSequentialGroup()
+                                    .addGap(246, 246, 246)
+                                    .addComponent(jLabel2)))
+                            .addGap(18, 18, 18)))))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 300, Short.MAX_VALUE)
+            .addGroup(layout.createSequentialGroup()
+                .addContainerGap(12, Short.MAX_VALUE)
+                .addComponent(jLabel2)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 176, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jButton1)
+                    .addComponent(jLabel1))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 176, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(29, 29, 29))
         );
 
         pack();
     }// </editor-fold>//GEN-END:initComponents
+
+    private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
+        // TODO add your handling code here:
+        //Ejecutamos el parser
+        String entrada = txtEntrada.getText();
+        
+        try{                    
+                //Palabra descorrompida
+                String palabraOriginal = new String(entrada.getBytes("ISO-8859-1"), "UTF-8");
+                //Entrada sin marcas diacriticas
+                String normalized_string = Normalizer.normalize(entrada, Normalizer.Form.NFD).replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
+
+                System.out.println("TEXTO A ANALIZAR: \n"+normalized_string);
+                
+                StringReader sr = new StringReader(normalized_string);
+                lexer lexer = new lexer(sr);
+                parser pars = new parser(lexer);
+                try{                        
+                    pars.parse();    
+                    txtSalida.setText("");                    
+                    String errores = "";
+                    ArrayList<TokenError> listadoErroresLexicos = lexer.obtenerListadoErroresLexicos();
+                    ArrayList<TokenError> listadoErroresSintacticos = pars.getListadoErroresSintacticos();
+                    //ArrayList<TokenError> listadoErroresSemanticos = pars.getListadoErroresSemanticos();
+                    
+                    System.out.println("\n\n\n/////////////////////////////////////////////////");
+                    
+                    try{
+                        for(TokenError te: listadoErroresLexicos){
+                            errores += te.getTipoToken()+" Linea"+te.getLinea()+" Columna: "+te.getColumna()+" Lexema :"+te.getLexema()+" Mensaje: "+te.getMsgError() + "\n";                                                     
+                        }
+                    }catch(Exception ex){
+                        
+                    }
+                    try{
+                        for(TokenError te: listadoErroresSintacticos){                            
+                            if(te.getMsgError().equalsIgnoreCase("La etiqueta de cierre debe ser <C_GCIC>")){//fin del archivo mal cerrado                                
+                                String tokens[]=normalized_string.split("\n");   
+                                int line = tokens.length, col = tokens[tokens.length - 1].length() + 1;
+                                
+                                te.setLinea(line);
+                                te.setColumna(col);
+
+                            }
+                            errores += te.getTipoToken()+" Linea"+te.getLinea()+" Columna: "+te.getColumna()+" Lexema :"+te.getLexema()+" Mensaje: "+te.getMsgError() + "\n";                            
+                        }                        
+                    }catch(Exception ex){ 
+                        
+                    }
+                   
+                    /*
+                    try{
+                        for(TokenError te: listadoErroresSemanticos){
+                            errores += te.getTipoToken()+" Linea"+te.getLinea()+" Columna: "+te.getColumna()+" Lexema :"+te.getLexema()+" Mensaje: "+te.getMsgError()+ "\n";
+                        }
+                    }catch(Exception ex){                        
+                              
+                    }*/
+                    //mostramos errores
+                    System.out.println(errores); 
+                    
+                    txtSalida.setText(pars.getCodigo3D());
+                    
+                    
+                }catch(Exception ex){
+                    System.out.println("Error en el lenguajes de etqiuetas: "+ex.getMessage());
+                    ex.printStackTrace();
+                }
+
+                System.out.println(" Parser Ejecutado");
+                
+            }catch(Exception ex){
+                System.out.println("Error al ejecutar el parser: "+ex.getLocalizedMessage());
+            }
+    }//GEN-LAST:event_jButton1ActionPerformed
 
     /**
      * @param args the command line arguments
@@ -78,5 +215,12 @@ public class Ventana extends javax.swing.JFrame {
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JButton jButton1;
+    private javax.swing.JLabel jLabel1;
+    private javax.swing.JLabel jLabel2;
+    private javax.swing.JScrollPane jScrollPane1;
+    private javax.swing.JScrollPane jScrollPane2;
+    private javax.swing.JTextArea txtEntrada;
+    private javax.swing.JTextArea txtSalida;
     // End of variables declaration//GEN-END:variables
 }

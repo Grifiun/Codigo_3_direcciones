@@ -1,0 +1,156 @@
+package gramatica;
+
+import java_cup.runtime.*;
+import gramatica.sym;
+import gramatica.lexer;
+import java_cup.runtime.XMLElement;
+import clasesDAO.*;
+import java.util.ArrayList;
+import java.util.List;
+
+parser code{:
+    //Listado de errores	
+	//Controlador de error sintactico
+    ArrayList<TokenError> listadoErroresSintacticos = new ArrayList();
+	int contador = 0;
+    String codigo = "";
+
+	@Override
+	public void syntax_error(Symbol a){
+		Token tokenError = (Token) a.value;//lo transformamos en token para obtener su lexema, fila y columna		
+		String msgError = "Se esperaba: ";	
+		
+                
+		int linea = (tokenError != null) ? tokenError.getLinea() : 0;
+		int columna = (tokenError != null) ? tokenError.getColumna() : 0;
+		
+		if(a.sym == sym.EOF){
+			System.out.println("END OF FILE");
+			TokenError tokenErrorAux = new TokenError("ERROR SINTACTICO", "Etiqueta de cierre", "La etiqueta de cierre debe ser ;", -1, -1);
+			listadoErroresSintacticos.add(tokenErrorAux);
+		}else{
+			for(int i = 0; i < expected_token_ids().size(); i++){
+				//msgError = msgError + mensajes[expected_token_ids().get(i)];
+				msgError = msgError + symbl_name_from_id(expected_token_ids().get(i)) + " ";
+
+				if(i < expected_token_ids().size() - 1)
+					msgError = msgError + ", ";			
+			}
+			//System.out.println("error de sintaxis: linea: "+tokenError.getLexema()+" "+tokenError.getLinea()+" columna: "+tokenError.getColumna()+" MENSAJE: "+msgError);
+			TokenError tokenErrorAux = new TokenError("ERROR SINTACTICO", tokenError.getLexema(), msgError, linea, columna);
+			listadoErroresSintacticos.add(tokenErrorAux);
+		}
+		
+	}
+
+    public void agregarLinea(String aux){
+        codigo += aux + "\n";
+    }
+
+    public String getCodigo3D(){
+        return codigo;
+    }
+	
+	public void report_error(String message, Object info) {
+        System.out.println("Reportar Error");
+    }
+    
+	public void report_fatal_error(String message, Object info) {
+        System.out.println("Error Fatal: " + info);
+    }
+
+    protected int error_sync_size() {
+        return 1;
+    }
+	
+	public ArrayList<TokenError> getListadoErroresSintacticos(){
+		return listadoErroresSintacticos;
+	}
+
+	public parser(lexer lex){
+        super(lex);
+    }
+:}
+
+//SIMBOLOS
+terminal Token PAREN_INI;
+terminal Token PAREN_FIN;
+terminal Token SIGNO_POR;
+terminal Token SIGNO_MAS;
+terminal Token SIGNO_MIN;
+terminal Token SIGNO_DIV;
+terminal Token SIGNO_IGUAL;
+
+//DATOS
+terminal Token NUMERO;
+terminal Token ID;
+
+//NO TERMINALES
+non terminal s;
+non terminal String producto;
+
+///precedencia
+precedence left SIGNO_MAS, SIGNO_MIN;
+precedence left SIGNO_POR, SIGNO_DIV;
+
+//PRODUCCIONES INICIO
+start with s;
+
+s ::=  ID:idAux SIGNO_IGUAL producto:n1
+        {:
+            String aux = idAux.getLexema() + " = " + n1;
+            agregarLinea(aux);
+        :}
+    ;
+
+producto ::= 
+      producto:n1 SIGNO_MAS producto:n2 
+	{: 
+		//System.out.print(" + "); 
+        String tAux = "t"+contador;
+        String aux = tAux + " = " + n1 + " + " + n2;
+        agregarLinea(aux);
+        contador++;
+        RESULT = tAux;
+	:}	
+    | producto:n1 SIGNO_MIN producto:n2
+    {: 
+		//System.out.print(" - ");
+        String tAux = "t"+contador; 
+        String aux = tAux + " = " + n1 + " - " + n2;
+        agregarLinea(aux);
+        contador++;
+        RESULT = tAux;
+	:}
+    | producto:n1 SIGNO_POR producto:n2 
+    {: 
+		//System.out.print(" * "); 
+        String tAux = "t"+contador; 
+        String aux = tAux + " = " + n1 + " * " + n2;
+        agregarLinea(aux);
+        contador++;
+        RESULT = tAux;
+	:}
+    | producto:n1 SIGNO_DIV producto:n2
+    {: 
+		//System.out.print(" / "); 
+        String tAux = "t"+contador; 
+        String aux = tAux + " = " + n1 + " / " + n2;
+        agregarLinea(aux);
+        contador++;
+        RESULT = tAux;
+	:}
+    | PAREN_INI producto:p 
+    {: 
+		//System.out.print(" ( )"); 
+        RESULT = p;
+	:}
+	PAREN_FIN
+    | SIGNO_MIN producto:n1
+    {: 
+		//System.out.print(" Entero negativo "); }
+        RESULT = n1;
+	:}
+    | NUMERO:n    {: RESULT = n.getLexema(); :}
+    | ID:n	{: RESULT = n.getLexema(); :}
+    ;    
